@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>搜索页面</title>
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .left-pane {
+            width: 50%;
+            padding: 20px;
+            border-right: 1px solid #ccc;
+        }
+        .right-pane {
+            width: 50%;
+            padding: 20px;
+        }
+        .search-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .form-group {
+            flex: 1;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        .details-btn {
+            padding: 5px 10px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        .details-btn:hover {
+            background-color: #0056b3;
+        }
+        #details {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="left-pane">
+    <h2>搜索</h2>
+    <div class="search-bar">
+        <div class="form-group">
+            <label for="week">第几周:</label>
+            <input type="text" id="week">
+        </div>
+        <div class="form-group">
+            <label for="weekday">星期几:</label>
+            <input type="text" id="weekday">
+        </div>
+        <div class="form-group">
+            <label for="class_no">第几节课:</label>
+            <input type="text" id="class_no">
+        </div>
+        <div class="form-group">
+            <label for="sign">sign签名:</label>
+            <input type="text" id="sign">
+        </div>
+        <div class="form-group">
+            <label for="userCode">你的学号:</label>
+            <input type="text" id="userCode">
+        </div>
+        <button id="search-btn">搜索</button>
+    </div>
+    
+    <h2>课程列表</h2>
+    <table id="classes-table">
+        <thead>
+            <tr>
+                <th>课程名称</th>
+                <th>教师姓名</th>
+                <th>上课地点</th>
+                <th>开课学院</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 搜索结果将在这里显示 -->
+        </tbody>
+    </table>
+</div>
+
+<div class="right-pane">
+    <h2>学生签到详情</h2>
+    <table id="classDetails-table">
+        <thead>
+            <tr>
+                <th>学生学号</th>
+                <th>学生姓名</th>
+                <th>签到状态</th>
+                <th>线下线上</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 签到详情将在这里显示 -->
+        </tbody>
+    </table>
+</div>
+<script>
+    let classes = [];
+    let class_details = [];
+
+    // 处理搜索按钮点击
+    document.getElementById('search-btn').addEventListener('click', function() {
+        // $.ajax({
+        //     type: "GET",
+        //     url: "https://tingke.xmu.edu.cn/app/viewXsKqDetail",
+        //     headers: 
+        // })
+        fetch('http://127.0.0.1:5000/get_all_class', {
+            method: 'POST',  // 请求方法为POST
+            headers: {
+                'Content-Type': 'application/json',  // 设置请求头，表明发送的是JSON数据
+            },
+            body: JSON.stringify({
+                "sign": document.getElementById("sign").value,
+                "userCode": document.getElementById("userCode").value,
+                "unitCode": "10384",
+                "dqz": document.getElementById("week").value,
+                "xqj": document.getElementById("weekday").value,
+                "djj": document.getElementById("class_no").value,
+                "key": "1"
+            })
+        })
+        .then(response => response.json())  // 解析JSON响应
+        .then(data => {
+            if(data['status'] == 1){
+                classes = data['data'];
+                classes.sort((a, b) => {
+                    return a.kcMc.localeCompare(b.kcMc, 'zh-CN');
+                });
+                // alert("获取课程成功");
+            }else{
+                alert("获取课程失败");
+            }
+            const tableBody = document.querySelector('#classes-table tbody');
+            tableBody.innerHTML = ''; // 清空之前的搜索结果
+
+            // 模拟添加搜索结果（实际应通过搜索结果生成）
+            classes.forEach(result => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${result.kcMc}</td>
+                    <td>${result.jsXm}</td>
+                    <td>${result.skDd}</td>
+                    <td>${result.kkXy}</td>
+                    <td><button class="details-btn" data-qdId="${result.qdCode}">查看详情</button></td>
+                `;
+                tableBody.appendChild(row);
+        });
+        })
+        .catch((error) => {
+            alert('Error:', error);
+        });
+
+        
+    });
+
+    // 添加“查看详情”按钮的点击事件
+    document.querySelector('#classes-table tbody').addEventListener('click', function(event) {
+        if (event.target.classList.contains('details-btn')) {
+            const qdId = event.target.getAttribute('data-qdId');
+            console.log(qdId);
+            fetchStudentAttendance(qdId);
+        }
+    }); 
+
+    // 模拟调用接口并展示学生签到情况
+    function fetchStudentAttendance(qdId) {
+        // 假设这是通过接口获取的数据，实际中可以通过 fetch 调用API
+        fetch('http://127.0.0.1:5000/get_qiandao_detail', {
+            method: 'POST',  // 请求方法为POST
+            headers: {
+                'Content-Type': 'application/json',  // 设置请求头，表明发送的是JSON数据
+            },
+            body: JSON.stringify({
+                "qdId": qdId,
+                "sign": document.getElementById("sign").value,
+                "userCode": document.getElementById("userCode").value,
+                "unitCode": "10384",
+            })
+        })
+        .then(response => response.json())  // 解析JSON响应
+        .then(data => {
+            if(data['status'] == 1){
+                class_details = data['data'];
+                class_details.sort((a, b) => {
+                    return Number(a.xsXh) - Number(b.xsXh);
+                });
+
+                console.log(class_details);
+
+                const detailsBody = document.querySelector('#classDetails-table tbody');
+                detailsBody.innerHTML = ''; // 清空之前的搜索结果
+
+                class_details.forEach(result => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${result.xsXh}</td>
+                        <td>${result.xsXm}</td>
+                        <td>${result.xsQdQkMc}</td>
+                        <td>${result.skXsStr}</td>
+                        <td>
+                            <button class="update-info-btn" data-qdId="${qdId}" data-xh="${result.xsXh}">修改签到状态</button>
+                            <button class="update-present-btn" data-qdId="${qdId}" data-uid="${result.uid}" data-xh="${result.xsXh}">修改线上线下状态</button>
+                        </td>
+                    `;
+                    detailsBody.appendChild(row);
+                });
+            }else{
+                alert("获取课程失败");
+            }
+            // showStudentAttendance(qdId);
+        })
+    }
+
+
+    document.querySelector('#classDetails-table tbody').addEventListener('click', function(event) {
+        if (event.target.classList.contains('update-info-btn')) {
+            const qdId = event.target.getAttribute('data-qdId');
+            const xsXh = event.target.getAttribute('data-xh');
+            console.log(xsXh);
+            const qdLx = [
+                { name: "正常", value: "1" },
+                { name: "迟到", value: "2" },
+                { name: "早退", value: "3" },
+                { name: "请假", value: "4" },
+                { name: "旷课", value: "0" },
+            ];
+
+            let options = qdLx.map(item => `填${item.value}代表${item.name}`).join('\n');
+            const selection = prompt("请选择签到状态:\n" + options);
+
+            if (selection) {
+                console.log(qdId, xsXh, selection);
+                fetch('http://127.0.0.1:5000/update_qiandao_info', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        "sign": document.getElementById("sign").value,
+                        "userCode": document.getElementById("userCode").value,
+                        "unitCode": "10384",
+                        "qdId": qdId,
+                        "xsXh": xsXh,
+                        "qdLx": selection
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 1) {
+                        alert(data['msg']);
+                        fetchStudentAttendance(qdId);  // 重新加载签到详情
+                    } else {
+                        alert(data['msg']);
+                    }
+                });
+            }
+        } else if (event.target.classList.contains('update-present-btn')) {
+            const uid = event.target.getAttribute('data-uid');
+            const xsXh = event.target.getAttribute('data-xh');
+            const qdId = event.target.getAttribute('data-qdId');
+            const _skXs = [
+                { name: "线下", value: "1" },
+                { name: "线上", value: "2" }
+            ];
+            
+            let options = _skXs.map(item => `填${item.value}代表${item.name}`).join('\n');
+            const skXs = prompt("请选择签到方式（线上/线下）：\n" + options);
+
+            if (skXs) {
+                fetch('http://127.0.0.1:5000/update_qiandao_present', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        "sign": document.getElementById("sign").value,
+                        "userCode": document.getElementById("userCode").value,
+                        "unitCode": "10384",
+                        "uid": uid,
+                        "xsXh": xsXh,
+                        "skXs": skXs
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 1) {
+                        alert("修改成功");
+                        fetchStudentAttendance(qdId);  // 重新加载签到详情
+                    } else {
+                        alert("修改失败");
+                    }
+                });
+            }
+        }
+    });
+
+</script>
+
+</body>
+</html>
