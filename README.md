@@ -1,1 +1,1 @@
-fuck
+https://luckyzuo.win/jw
